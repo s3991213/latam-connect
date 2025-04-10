@@ -13,4 +13,7 @@ RSS_SUFFIX = "/feed/"  # RSS URL format (appends to base)
 
 CSV_OUTPUT_PATH = "rss_feed_data.csv"
 
-FETCH_INTERVAL_HOURS = 1  # How often to fetch feeds
+FETCH_INTERVAL_HOURS = 0  # How often to fetch feeds
+FETCH_INTERVAL_MINUTES = 3  # Instead of hours
+
+
