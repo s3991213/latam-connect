@@ -1,0 +1,4 @@
+feedparser
+pandas
+beautifulsoup4
+apscheduler
