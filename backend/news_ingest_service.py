@@ -4,16 +4,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import re
 
+from rss_config import BASE_URLS, RSS_SUFFIX, CSV_OUTPUT_PATH
+
 # -------- Base URLs to Test -------- #
 
-base_urls = [
-    "https://contxto.com/en/",
-    "https://latamlist.com/",
-    "https://www.hyperlatam.com/tag/meet-the-startups/",
-    "https://nearshoreamericas.com/",
-    "https://latam.500.co/latam-companies",
-    "https://www.startupblink.com/startups"
-]
+base_urls = BASE_URLS
 
 # -------- HTML Cleaning -------- #
 
@@ -30,7 +25,7 @@ def validate_feeds(base_urls):
 
     print("🔍 Checking for valid RSS feeds...")
     for url in base_urls:
-        rss_url = url.rstrip('/') + "/feed/"
+        rss_url = url.rstrip('/') + RSS_SUFFIX
         feed = feedparser.parse(rss_url)
 
         if not feed.bozo and feed.entries:
@@ -77,4 +72,4 @@ if __name__ == "__main__":
         print("🚫 No valid feeds found. Exiting.")
     else:
         entries = collect_entries(valid_rss_feeds)
-        save_to_csv(entries)
+        save_to_csv(entries, filename=CSV_OUTPUT_PATH)
