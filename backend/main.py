@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from crud import (
     create_article, get_article, get_all_articles, update_article, delete_article,
     create_media_report, get_media_report, get_all_media_reports, update_media_report, delete_media_report,
@@ -6,6 +7,15 @@ from crud import (
 )
 
 app = FastAPI()
+
+# Allow requests from frontend (localhost:5173)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # or ["*"] to allow all (not recommended for production)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ----------- Articles Endpoints -----------
 @app.post("/articles/")
