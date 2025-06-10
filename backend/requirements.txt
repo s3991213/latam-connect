@@ -2,3 +2,6 @@ feedparser
 pandas
 beautifulsoup4
 apscheduler
+pymongo
+fastapi
+uvicorn

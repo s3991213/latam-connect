@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Emerald themed pretty scrollbar */
+.pretty-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #34d399 #d1fae5; /* emerald-400 on emerald-100 */
+}
+
+/* For Chrome, Edge, and Safari */
+.pretty-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  background: #d1fae5; /* emerald-100 */
+  border-radius: 8px;
+}
+.pretty-scrollbar::-webkit-scrollbar-thumb {
+  background: #34d399; /* emerald-400 */
+  border-radius: 8px;
+  border: 2px solid #d1fae5;
+}
+.pretty-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #10b981; /* emerald-500 */
+}

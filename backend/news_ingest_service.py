@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from bs4 import BeautifulSoup
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from rss_config import BASE_URLS, RSS_SUFFIX, CSV_OUTPUT_PATH
 
@@ -22,44 +23,61 @@ def clean_html(raw_html):
 
 def validate_feeds(base_urls):
     valid_feeds = []
+    log = []
 
-    print("🔍 Checking for valid RSS feeds...")
-    for url in base_urls:
-        rss_url = url.rstrip('/') + RSS_SUFFIX
+    def check_feed(url):
+        rss_url = url.rstrip('/') + "/feed/"
         feed = feedparser.parse(rss_url)
-
         if not feed.bozo and feed.entries:
-            print(f"✅ Valid feed found: {rss_url} ({len(feed.entries)} entries)")
-            valid_feeds.append(rss_url)
+            msg = f"✅ Valid feed found: {rss_url} ({len(feed.entries)} entries)"
+            return rss_url, msg
         else:
-            print(f"❌ Not a valid RSS feed: {rss_url}")
-    
-    return valid_feeds
+            msg = f"❌ Not a valid RSS feed: {rss_url}"
+            return None, msg
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = executor.map(check_feed, base_urls)
+
+    for feed_url, msg in results:
+        log.append(msg)
+        if feed_url:
+            valid_feeds.append(feed_url)
+
+    return valid_feeds, log
+
 
 # -------- Feed Collection -------- #
 
 def collect_entries(feed_urls):
     all_entries = []
 
-    for url in feed_urls:
+    def process_feed(url):
+        entries = []
         feed = feedparser.parse(url)
-        for entry in feed.entries:
+        for entry in feed.entries:  #  feed.entries[:10] limit to 10 entries per feed (optional)
             raw_description = entry.content[0].value if "content" in entry else entry.get("summary", "")
             description = clean_html(raw_description)
 
-            all_entries.append({
+            entries.append({
                 "title": entry.get("title", ""),
                 "link": entry.get("link", ""),
                 "published": entry.get("published", ""),
                 "description": description,
                 "source": feed.feed.get("title", ""),
             })
+        return entries
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        results = executor.map(process_feed, feed_urls)
+
+    for feed_entries in results:
+        all_entries.extend(feed_entries)
 
     return all_entries
 
 def save_to_csv(entries, filename="rss_feed_data.csv"):
     df = pd.DataFrame(entries)
-    df["fetched_at"] = datetime.utcnow().isoformat()
+    df["fetched_at"] = datetime.now().isoformat()
     df.to_csv(filename, index=False)
     print(f"\n💾 Saved {len(df)} entries to {filename}")
 
