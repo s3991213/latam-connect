@@ -44,6 +44,35 @@ DOMAIN_CONTENT_XPATHS = {
     "clarin.com": '//div[contains(@class, "cuerpo_nota") or contains(@class, "body-nota")]',
     "eluniverso.com": '//div[contains(@class, "field-item even")]',
     "lanacion.com.ar": '//div[contains(@class, "article-body")]',
+    "fintechnews.am": '//div[contains(@class, "entry-content")] | //div[contains(@class, "post-content")]',
+}
+
+DOMAIN_META_XPATHS = {
+    "techcrunch.com": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//time/@datetime'
+    },
+    "latamlist.com": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//meta[@property="article:published_time"]/@content'
+    },
+    "nearshoreamericas.com": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//time/@datetime | //meta[@property="article:published_time"]/@content'
+    },
+    "feedough.com": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//meta[@property="article:published_time"]/@content'
+    },
+    "fintechnews.am": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//time/@datetime | //meta[@property="article:published_time"]/@content'
+    },
 }
 
 
@@ -311,25 +340,23 @@ class NewsSpider(scrapy.Spider):
         for section_url in self.get_section_links(response):
             yield response.follow(section_url, callback=self.parse)
 
-
     def parse_article(self, response):
         try:
-            title = response.xpath('//h1/text()').get()
-            if not title:
-                title = response.xpath('//article//h1/text()').get()
-
-            summary = response.xpath('//meta[@name="description"]/@content').get()
-
             domain = urlparse(response.url).netloc
-            content_xpath = DOMAIN_CONTENT_XPATHS.get(domain, 
-                '//div[contains(@class, "wp-block-post-content")]'
-            )
+            meta_xpaths = DOMAIN_META_XPATHS.get(domain, {
+                "title": '//h1/text()',
+                "description": '//meta[@name="description"]/@content',
+                "date": '//time/@datetime'
+            })
+            content_xpath = DOMAIN_CONTENT_XPATHS.get(domain, '//div[contains(@class, "wp-block-post-content")]')
 
             self.logger.info(f"Using content XPath for {domain}: {content_xpath}")
 
+            title = response.xpath(meta_xpaths["title"]).get()
+            description_meta = response.xpath(meta_xpaths["description"]).get()
+
             content_container = response.xpath(content_xpath)
 
-            # Fallback if no content found
             if not content_container or not content_container.xpath('.//p').get():
                 self.logger.warning(f"No content found with {content_xpath} — trying fallback to <article>//p")
                 content_container = response.xpath('//article')
@@ -351,23 +378,26 @@ class NewsSpider(scrapy.Spider):
 
             content = " ".join(cleaned_paragraphs)
 
-            # Descripción: first paragraph if available, fallback to meta description
+            # Descripción: first paragraph or meta description
             if cleaned_paragraphs:
                 description = cleaned_paragraphs[0]
-            elif summary:
-                description = summary.strip()
+            elif description_meta:
+                description = description_meta.strip()
             else:
                 description = ""
 
             # Date extraction
-            date_str = response.xpath('//time/@datetime').get()
+            date_xpath = meta_xpaths["date"]
+            date_str = response.xpath(date_xpath).get()
             formatted_date = ""
             if date_str:
                 try:
                     article_date = datetime.strptime(date_str[:10], "%Y-%m-%d")
                     formatted_date = article_date.strftime("%Y-%m-%d")
                 except Exception:
-                    formatted_date = date_str
+                    formatted_date = date_str.strip()
+
+            # Fallback alt date
             if not formatted_date or formatted_date == date_str:
                 alt_date_str = response.xpath('//li[contains(@class, "meta-date")]/text()').get()
                 if alt_date_str:
