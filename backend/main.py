@@ -204,33 +204,90 @@ def get_all_news_company_profiles():
 @app.post("/run_spider/")
 def run_spider(
     keywords: Optional[List[str]] = Query(None),
-    urls: Optional[List[str]] = Query(None)
+    urls: Optional[List[str]] = Query(None),
+    frequency: Optional[str] = Query("immediate")
 ):
     """
-    Trigger the Scrapy spider with optional keywords and URLs.
+    Trigger the Scrapy spider with optional keywords, URLs, and frequency.
+    Outputs results to output.csv, then runs enrich_articles.py.
     """
-    # Build command
-    command = [
-        "scrapy", "crawl", "news_spider"
-    ]
 
-    # Add arguments if present
+    # ====== Dynamic path detection ======
+
+    # Find backend dir
+    BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+    # Go up to project root (latam-connect/)
+    PROJECT_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
+    # Scrapy project is at latam-connect/lcscraper
+    SCRAPY_PROJECT_DIR = os.path.join(PROJECT_ROOT, "lcscraper")
+    # Enrichment script is at lcscraper/enrich_articles.py
+    ENRICH_SCRIPT_PATH = os.path.join(SCRAPY_PROJECT_DIR, "enrich_articles.py")
+
+    # Full path to scrapy binary
+    SCRAPY_PATH = "/home/dog/miniconda3/bin/scrapy"  # Run `which scrapy` to confirm this path
+
+    # ====== Debug print ======
+    print(f"SCRAPY_PROJECT_DIR={SCRAPY_PROJECT_DIR}")
+    print(f"SCRAPY_PATH={SCRAPY_PATH}")
+    print(f"ENRICH_SCRIPT_PATH={ENRICH_SCRIPT_PATH}")
+
+    # ====== Build Scrapy command ======
+    command = [SCRAPY_PATH, "crawl", "news_spider"]
+
     if keywords:
         command += ["-a", f"keywords={','.join(keywords)}"]
     if urls:
         command += ["-a", f"urls={','.join(urls)}"]
 
-    # Run the command (change dir to /scraper)
-    result = subprocess.run(
-        command,
-        cwd=os.path.abspath("../scraper"),
-        capture_output=True,
-        text=True
-    )
+    # Add CSV output
+    command += ["-o", "output.csv"]
 
+    print(f"Running command: {' '.join(command)} in {SCRAPY_PROJECT_DIR}")
+    print(f"Frequency: {frequency}")
+
+    # ====== Run Scrapy subprocess ======
+    try:
+        print("Calling subprocess.run() for Scrapy...")
+        result = subprocess.run(
+            command,
+            cwd=SCRAPY_PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print("Subprocess finished.")
+        print("stdout:", result.stdout)
+        print("stderr:", result.stderr)
+        status = "Spider run completed successfully"
+
+        # ====== Run enrichment script ======
+        print("Running enrich_articles.py...")
+        enrich_result = subprocess.run(
+            ["python3", ENRICH_SCRIPT_PATH],
+            cwd=SCRAPY_PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        print("Enrichment finished.")
+        print("stdout:", enrich_result.stdout)
+        print("stderr:", enrich_result.stderr)
+
+    except subprocess.CalledProcessError as e:
+        print("Subprocess finished with error.")
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
+        result = e
+        status = "Spider run failed"
+        enrich_result = None  # no enrichment if spider failed
+
+    # ====== Return result ======
     return {
-        "status": "Spider run triggered",
+        "status": status,
         "command": " ".join(command),
-        "stdout": result.stdout,
-        "stderr": result.stderr
+        "stdout": result.stdout if hasattr(result, 'stdout') else "",
+        "stderr": result.stderr if hasattr(result, 'stderr') else "",
+        "frequency": frequency,
+        "enrich_stdout": enrich_result.stdout if enrich_result else "",
+        "enrich_stderr": enrich_result.stderr if enrich_result else ""
     }

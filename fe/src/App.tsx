@@ -17,11 +17,11 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<NewsSearchFilter />} />
-            <Route path="/articles" element={<Articles />} />
+            {/* <Route path="/" element={<NewsSearchFilter />} /> */}
+            {/* <Route path="/articles" element={<Articles />} /> */}
             <Route path="/companies" element={<Companies />} />
-            <Route path="/profilesearchfilter" element={<ProfileSearchFilter />} />
-            <Route path="/mediareports" element={<MediaReports />} />
+            <Route path="/" element={<ProfileSearchFilter />} />
+            {/* <Route path="/mediareports" element={<MediaReports />} /> */}
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>

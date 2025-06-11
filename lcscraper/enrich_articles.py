@@ -38,7 +38,7 @@ category_keywords = {
 countries = ["Argentina", "Chile", "Spain", "Mexico", "Colombia"]
 
 # Load CSV
-df = pd.read_csv("articlesengt.csv")
+df = pd.read_csv("output.csv")
 
 # Helper: clean resumen
 def clean_resumen(text):

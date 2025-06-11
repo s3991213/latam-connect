@@ -2,10 +2,9 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Article } from '../types';
 import { fetchArticles } from '../services/api';
 
-// Define filters you actually support (customize as needed)
+
 interface ArticleFilters {
   query: string;
-  // Add more filters if your backend supports them (e.g., date range)
 }
 
 interface NewsContextType {

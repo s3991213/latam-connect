@@ -42,11 +42,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { name: 'Search', path: '/', icon: <BarChart3 className="h-5 w-5" /> },
-    { name: 'Articles', path: '/articles', icon: <Newspaper className="h-5 w-5" /> },
+    // { name: 'Search', path: '/', icon: <BarChart3 className="h-5 w-5" /> },
+    // { name: 'Articles', path: '/articles', icon: <Newspaper className="h-5 w-5" /> },
     { name: 'Companies', path: '/companies', icon: <Network className="h-5 w-5" /> },
-    { name: 'Profile Search Filter', path: '/profilesearchfilter', icon: <TrendingUp className="h-5 w-5" /> },
-    { name: 'Media Reports', path: '/mediareports', icon: <Tag className="h-5 w-5" /> },
+    { name: 'Profile Search Filter', path: '/', icon: <TrendingUp className="h-5 w-5" /> },
+    // { name: 'Media Reports', path: '/mediareports', icon: <Tag className="h-5 w-5" /> },
     { name: 'Settings', path: '/settings', icon: <Settings className="h-5 w-5" /> },
   ];
 
