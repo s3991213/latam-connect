@@ -90,14 +90,25 @@ class NewsSpider(scrapy.Spider):
         'LOG_LEVEL': 'INFO'
     }
 
-    def __init__(self, urls_file=None, *args, **kwargs):
+    def __init__(self, urls_file=None, keywords=None, urls=None, *args, **kwargs):
         super(NewsSpider, self).__init__(*args, **kwargs)
+
+        # --- Start URLs ---
         if urls_file:
             with open(urls_file, 'r') as f:
                 self.start_urls = [url.strip() for url in f if url.strip()]
+        elif urls:
+            self.start_urls = [u.strip() for u in urls.split(",") if u.strip()]
         else:
             self.start_urls = []
 
+        # --- Keywords ---
+        if keywords:
+            self.keywords = [kw.strip() for kw in keywords.split(",") if kw.strip()]
+        else:
+            self.keywords = []
+
+        # --- Gemini setup (unchanged) ---
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY not found in environment variables.")
@@ -109,6 +120,7 @@ class NewsSpider(scrapy.Spider):
         self.gemini_day = datetime.utcnow().date()
 
         self.visited_links = set()
+
 
     def can_make_gemini_request(self):
         now = datetime.utcnow()

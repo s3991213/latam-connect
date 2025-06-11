@@ -4,6 +4,10 @@ from fastapi import Query
 from typing import Optional, List
 from fastapi.responses import JSONResponse
 from db import articles_collection, companies_collection, media_reports_collection
+import subprocess
+import os
+from fastapi import Body
+
 from crud import (
     create_article, get_article, get_all_articles, get_companies_by_empresa, update_article, delete_article,
     create_media_report, get_media_report, get_all_media_reports, update_media_report, delete_media_report,
@@ -195,3 +199,38 @@ def get_all_news_company_profiles():
     for r in results:
         r["_id"] = str(r["_id"])
     return results
+
+
+@app.post("/run_spider/")
+def run_spider(
+    keywords: Optional[List[str]] = Query(None),
+    urls: Optional[List[str]] = Query(None)
+):
+    """
+    Trigger the Scrapy spider with optional keywords and URLs.
+    """
+    # Build command
+    command = [
+        "scrapy", "crawl", "news_spider"
+    ]
+
+    # Add arguments if present
+    if keywords:
+        command += ["-a", f"keywords={','.join(keywords)}"]
+    if urls:
+        command += ["-a", f"urls={','.join(urls)}"]
+
+    # Run the command (change dir to /scraper)
+    result = subprocess.run(
+        command,
+        cwd=os.path.abspath("../scraper"),
+        capture_output=True,
+        text=True
+    )
+
+    return {
+        "status": "Spider run triggered",
+        "command": " ".join(command),
+        "stdout": result.stdout,
+        "stderr": result.stderr
+    }
