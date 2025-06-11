@@ -45,6 +45,7 @@ DOMAIN_CONTENT_XPATHS = {
     "eluniverso.com": '//div[contains(@class, "field-item even")]',
     "lanacion.com.ar": '//div[contains(@class, "article-body")]',
     "fintechnews.am": '//div[contains(@class, "entry-content")] | //div[contains(@class, "post-content")]',
+    "contexto.com": '//div[contains(@class, "entry-content")]',
 }
 
 DOMAIN_META_XPATHS = {
@@ -72,6 +73,11 @@ DOMAIN_META_XPATHS = {
         "title": '//h1/text()',
         "description": '//meta[@name="description"]/@content',
         "date": '//time/@datetime | //meta[@property="article:published_time"]/@content'
+    },
+    "contexto.com": {
+        "title": '//h1/text()',
+        "description": '//meta[@name="description"]/@content',
+        "date": '//meta[@property="article:published_time"]/@content | //time/@datetime'
     },
 }
 
@@ -245,7 +251,7 @@ class NewsSpider(scrapy.Spider):
             abs_link = urljoin(response.url, link)
 
             # Filter only category and tag pages
-            if re.search(r'/category/|/tag/', abs_link):
+            if re.search(r'/category/|/tag/|/startups/|/fintech/', abs_link):
                 # Filter out common junk
                 if re.search(r'/feed/|/about/|/contact/|/privacy/|/terms/', abs_link):
                     continue
@@ -352,7 +358,12 @@ class NewsSpider(scrapy.Spider):
 
             self.logger.info(f"Using content XPath for {domain}: {content_xpath}")
 
+            # Title with fallback to <title> tag
             title = response.xpath(meta_xpaths["title"]).get()
+            if not title:
+                title = response.xpath('//title/text()').get()
+
+            # Description meta with fallback
             description_meta = response.xpath(meta_xpaths["description"]).get()
 
             content_container = response.xpath(content_xpath)
@@ -376,15 +387,17 @@ class NewsSpider(scrapy.Spider):
                     cleaned_paragraphs.append(p_strip)
                     seen.add(p_strip)
 
+            # Build content and description fallback
             content = " ".join(cleaned_paragraphs)
 
-            # Descripción: first paragraph or meta description
             if cleaned_paragraphs:
                 description = cleaned_paragraphs[0]
             elif description_meta:
                 description = description_meta.strip()
             else:
-                description = ""
+                # Final fallback: try first paragraph anywhere on page
+                first_p = response.xpath('//p/text()').get()
+                description = first_p.strip() if first_p else ""
 
             # Date extraction
             date_xpath = meta_xpaths["date"]
@@ -417,6 +430,7 @@ class NewsSpider(scrapy.Spider):
 
         except Exception as e:
             self.logger.error(f"Failed parsing article {response.url}: {e}")
+
 
     def remove_duplicates_from_file(self, filename="parsed.txt"):
         try:
