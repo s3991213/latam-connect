@@ -1,4 +1,4 @@
-from db import articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection
+from db import articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection, spider_urls_collection
 from bson.objectid import ObjectId
 import re
 
@@ -158,3 +158,22 @@ def get_news_company_profiles(category=None, country=None):
         # If country is a list, use $in; if string, convert to list
         query["country"] = {"$in": country if isinstance(country, list) else [country]}
     return list(news_company_profiles_collection.find(query))
+
+# ---------- Spider URLs CRUD ----------
+
+def get_all_spider_urls():
+    """Return all spider URLs."""
+    urls = list(spider_urls_collection.find())
+    for url in urls:
+        url["_id"] = str(url["_id"])
+    return urls
+
+def create_spider_url(url_text):
+    """Insert a new spider URL."""
+    result = spider_urls_collection.insert_one({"url": url_text})
+    return str(result.inserted_id)
+
+def delete_spider_url(url_id):
+    """Delete a spider URL by ID."""
+    result = spider_urls_collection.delete_one({"_id": ObjectId(url_id)})
+    return result.deleted_count

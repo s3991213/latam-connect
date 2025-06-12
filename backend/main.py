@@ -11,7 +11,7 @@ from fastapi import Body
 from crud import (
     create_article, get_article, get_all_articles, get_companies_by_empresa, update_article, delete_article,
     create_media_report, get_media_report, get_all_media_reports, update_media_report, delete_media_report,
-    create_company, get_company, get_all_companies, update_company, delete_company, search_all_collections
+    create_company, get_company, get_all_companies, update_company, delete_company, search_all_collections,get_all_spider_urls, create_spider_url, delete_spider_url
 )
 
 app = FastAPI()
@@ -291,3 +291,23 @@ def run_spider(
         "enrich_stdout": enrich_result.stdout if enrich_result else "",
         "enrich_stderr": enrich_result.stderr if enrich_result else ""
     }
+
+
+# GET all spider URLs
+@app.get("/spider_urls")
+def get_spider_urls_endpoint():
+    return get_all_spider_urls()
+
+# POST add new spider URL
+@app.post("/spider_urls")
+def create_spider_url_endpoint(url: str):
+    inserted_id = create_spider_url(url)
+    return {"inserted_id": inserted_id}
+
+# DELETE spider URL
+@app.delete("/spider_urls/{url_id}")
+def delete_spider_url_endpoint(url_id: str):
+    deleted = delete_spider_url(url_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="URL not found or not deleted")
+    return {"deleted": url_id}
