@@ -1,4 +1,4 @@
-from db import articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection, spider_urls_collection
+from db import ai_enriched_articles_collection,articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection, spider_urls_collection
 from bson.objectid import ObjectId
 import re
 
@@ -177,3 +177,63 @@ def delete_spider_url(url_id):
     """Delete a spider URL by ID."""
     result = spider_urls_collection.delete_one({"_id": ObjectId(url_id)})
     return result.deleted_count
+
+# ========== AI Enriched Articles CRUD ==========
+def create_enriched_article(data):
+    """Insert a new AI-enriched article"""
+    result = ai_enriched_articles_collection.insert_one(data)
+    return str(result.inserted_id)
+
+def get_enriched_article(article_id):
+    """Get a single enriched article by ID"""
+    return ai_enriched_articles_collection.find_one({"_id": ObjectId(article_id)})
+
+def get_all_enriched_articles(
+    company: str = None, 
+    sentiment: str = None,
+    category: str = None
+):
+    """Get enriched articles with optional filters"""
+    query = {}
+    if company:
+        query["company"] = re.compile(re.escape(company), re.IGNORECASE)
+    if sentiment:
+        query["sentiment"] = sentiment
+    if category:
+        query["category"] = re.compile(re.escape(category), re.IGNORECASE)
+        
+    return list(ai_enriched_articles_collection.find(query))
+
+def update_enriched_article(article_id, data):
+    """Update an enriched article"""
+    result = ai_enriched_articles_collection.update_one(
+        {"_id": ObjectId(article_id)},
+        {"$set": data}
+    )
+    return result.modified_count
+
+def delete_enriched_article(article_id):
+    """Delete an enriched article"""
+    result = ai_enriched_articles_collection.delete_one({"_id": ObjectId(article_id)})
+    return result.deleted_count
+
+def search_enriched_articles(keyword, date_from=None, date_to=None):
+    """Search across enriched article fields"""
+    regex = re.compile(re.escape(keyword), re.IGNORECASE)
+    query = {
+        "$or": [
+            {"title": regex},
+            {"description": regex},
+            {"company": regex},
+            {"insights": regex}
+        ]
+    }
+    
+    if date_from and date_to:
+        query["date"] = {"$gte": date_from, "$lte": date_to}
+        
+    results = list(ai_enriched_articles_collection.find(query))
+    for r in results:
+        r["_id"] = str(r["_id"])
+        r["collection"] = "ai_enriched_articles"
+    return results

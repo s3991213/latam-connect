@@ -22,4 +22,5 @@ media_reports_collection = db['media_reports']
 companies_collection = db['companies']
 news_company_profiles_collection = db['news_company_profiles']
 spider_urls_collection = db['spider_urls']
+ai_enriched_articles_collection = db['ai_enriched_articles']
 
