@@ -1,0 +1,7 @@
+pandas
+openai
+python-dotenv
+spacy
+ftfy
+transformers
+torch
