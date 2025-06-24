@@ -1,3 +1,7 @@
 lcscraper/.env
 AI/venv/
 **/__pycache__/
+lcscraper/articlesengt.csv
+lcscraper/enriched_articles_final.csv
+lcscraper/output.csv
+lcscraper/urlseng.txt
