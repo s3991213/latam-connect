@@ -5,3 +5,6 @@ apscheduler
 pymongo
 fastapi
 uvicorn
+pymongo
+python-dotenv
+pandas

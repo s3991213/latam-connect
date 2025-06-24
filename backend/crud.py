@@ -1,4 +1,4 @@
-from db import ai_enriched_articles_collection,articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection, spider_urls_collection
+from db import ai_enriching_input_collection, ai_enriched_articles_collection,articles_collection, media_reports_collection, companies_collection, news_company_profiles_collection, spider_urls_collection
 from bson.objectid import ObjectId
 import re
 
@@ -237,3 +237,46 @@ def search_enriched_articles(keyword, date_from=None, date_to=None):
         r["_id"] = str(r["_id"])
         r["collection"] = "ai_enriched_articles"
     return results
+
+
+# ---------- AI Enriching Input CRUD ----------
+def create_ai_enriching_input(data):
+    """Insert a new AI enriching input record."""
+    result = ai_enriching_input_collection.insert_one(data)
+    return str(result.inserted_id)
+
+def get_ai_enriching_input(record_id):
+    """Get a single AI enriching input record by ID."""
+    return ai_enriching_input_collection.find_one({"_id": ObjectId(record_id)})
+
+def get_all_ai_enriching_inputs():
+    """Get all AI enriching input records."""
+    return list(ai_enriching_input_collection.find({}))
+
+def update_ai_enriching_input(record_id, data):
+    """Update an AI enriching input record by ID."""
+    result = ai_enriching_input_collection.update_one(
+        {"_id": ObjectId(record_id)},
+        {"$set": data}
+    )
+    return result.modified_count
+
+def delete_ai_enriching_input(record_id):
+    """Delete an AI enriching input record by ID."""
+    result = ai_enriching_input_collection.delete_one({"_id": ObjectId(record_id)})
+    return result.deleted_count
+
+#  search function later if needed
+def search_ai_enriching_inputs(keyword):
+    """Search across AI enriching input fields."""
+    regex = re.compile(re.escape(keyword), re.IGNORECASE)
+    query = {
+        "$or": [
+            {"Title": regex},
+            {"Link": regex},
+            {"Description": regex},
+            {"Category": regex},
+            {"Location": regex}
+        ]
+    }
+    return list(ai_enriching_input_collection.find(query))

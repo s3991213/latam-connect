@@ -7,7 +7,8 @@ from db import (
     articles_collection, 
     companies_collection, 
     media_reports_collection,
-    ai_enriched_articles_collection
+    ai_enriched_articles_collection,
+    ai_enriching_input_collection
 )
 import subprocess
 import os
@@ -24,7 +25,14 @@ from crud import (
     
     # New enriched article functions
     create_enriched_article, get_enriched_article, get_all_enriched_articles,
-    update_enriched_article, delete_enriched_article, search_enriched_articles
+    update_enriched_article, delete_enriched_article, search_enriched_articles,
+
+    create_ai_enriching_input,
+    get_ai_enriching_input,
+    get_all_ai_enriching_inputs,
+    update_ai_enriching_input,
+    delete_ai_enriching_input,
+    search_ai_enriching_inputs
 )
 
 app = FastAPI()
@@ -309,3 +317,69 @@ def delete_spider_url_endpoint(url_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="URL not found or not deleted")
     return {"deleted": url_id}
+
+
+# ---------- AI Enriching Input Endpoints ----------
+
+@app.post("/ai_enriching_inputs", status_code=201)
+async def create_ai_enriching_input_endpoint(data: dict = Body(...)):
+    """
+    Create a new AI enriching input record.
+    Expects a JSON body like:
+    {
+        "Title": "Example Article",
+        "Link": "http://example.com/article",
+        "Description": "This is a description...",
+        "Category": "Technology",
+        "Location": "Global"
+    }
+    """
+    try:
+        inserted_id = create_ai_enriching_input(data)
+        return {"message": "Record created successfully", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create record: {e}")
+
+@app.get("/ai_enriching_inputs")
+async def get_all_ai_enriching_inputs_endpoint(
+    keyword: Optional[str] = None
+):
+    """
+    Get all AI enriching input records, with optional keyword search.
+    """
+    if keyword:
+        records = search_ai_enriching_inputs(keyword)
+    else:
+        records = get_all_ai_enriching_inputs()
+    return records
+
+@app.get("/ai_enriching_inputs/{record_id}")
+async def get_ai_enriching_input_endpoint(record_id: str):
+    """
+    Get a single AI enriching input record by ID.
+    """
+    record = get_ai_enriching_input(record_id)
+    if record:
+        record['_id'] = str(record['_id']) # Convert ObjectId to string for JSON serialization
+        return record
+    raise HTTPException(status_code=404, detail="Record not found")
+
+@app.put("/ai_enriching_inputs/{record_id}")
+async def update_ai_enriching_input_endpoint(record_id: str, data: dict = Body(...)):
+    """
+    Update an AI enriching input record by ID.
+    """
+    modified_count = update_ai_enriching_input(record_id, data)
+    if modified_count:
+        return {"message": "Record updated successfully", "modified_count": modified_count}
+    raise HTTPException(status_code=404, detail="Record not found or no changes made")
+
+@app.delete("/ai_enriching_inputs/{record_id}")
+async def delete_ai_enriching_input_endpoint(record_id: str):
+    """
+    Delete an AI enriching input record by ID.
+    """
+    deleted_count = delete_ai_enriching_input(record_id)
+    if deleted_count:
+        return {"message": "Record deleted successfully", "deleted_count": deleted_count}
+    raise HTTPException(status_code=404, detail="Record not found")
