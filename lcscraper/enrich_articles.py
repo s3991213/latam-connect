@@ -3,7 +3,6 @@ import pandas as pd
 import spacy
 from textblob import TextBlob
 import re
-import requests
 import nltk
 from nltk.tokenize import word_tokenize
 from dotenv import load_dotenv
@@ -20,182 +19,105 @@ if GEMINI_API_KEY is None:
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')  # Updated to newer model
 
 # Load Spacy English model
 nlp = spacy.load("en_core_web_sm")
 
-# Category keywords
+# Enhanced category keywords
 category_keywords = {
-    "FinTech": ["fintech", "payments", "bank", "financial", "money", "crypto", "blockchain"],
-    "AI": ["artificial", "intelligence", "ai", "machine", "learning", "deep", "chatbot", "generative", "llm"],
-    "Education": ["education", "edtech", "learning", "school", "university", "student", "training"],
-    "Healthcare": ["health", "healthcare", "medical", "doctor", "hospital", "biotech"],
-    "Government": ["government", "public", "policy", "regulation", "minister", "govtech"],
-    "Finance": ["finance", "investment", "vc", "venture", "capital", "stock", "fund", "ipo"]
+    "FinTech": ["fintech", "payment", "bank", "financial", "money", "crypto", "blockchain", "investment"],
+    "AI": ["ai", "artificial intelligence", "machine learning", "deep learning", "llm", "generative ai"],
+    "Tech": ["tech", "technology", "software", "hardware", "device", "app", "application"],
+    "Healthcare": ["health", "medical", "hospital", "biotech", "pharma", "healthcare"],
+    "Business": ["business", "startup", "enterprise", "market", "economic"]
 }
 
-countries = ["Argentina", "Chile", "Spain", "Mexico", "Colombia"]
+countries = ["Argentina", "Brazil", "Chile", "Colombia", "Mexico", "Spain", "Peru"]
 
-# Load CSV
-df = pd.read_csv("output.csv")
-
-# Helper: clean resumen
-def clean_resumen(text):
+def clean_description(text):
+    """Clean and deduplicate description text"""
     if not isinstance(text, str):
         return ""
-    paragraphs = text.split('\n')
+    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
     seen = set()
-    cleaned = []
-    for p in paragraphs:
-        p_strip = p.strip()
-        if p_strip and p_strip not in seen:
-            cleaned.append(p_strip)
-            seen.add(p_strip)
-    return ' '.join(cleaned)
+    return ' '.join([p for p in paragraphs if not (p in seen or seen.add(p))])
 
-# Step 1: Collect unique company names
-print("Extracting company names...")
-company_names_set = set()
+def detect_category(text):
+    """Enhanced category detection with word boundaries"""
+    text_lower = text.lower()
+    for category, keywords in category_keywords.items():
+        for keyword in keywords:
+            if re.search(rf'\b{re.escape(keyword)}\b', text_lower):
+                return category
+    return "Other"
 
-for summary in df["Resumen"]:
-    if not isinstance(summary, str) or summary.strip() == "":
-        continue
-    summary = clean_resumen(summary)
-    doc = nlp(summary)
-    found = False
-    for ent in doc.ents:
-        if ent.label_ in {"ORG", "COMPANY"}:
-            company_names_set.add(ent.text.strip())
-            found = True
-            break
-    if not found:
-        # fallback heuristic
-        matches = re.findall(r'\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)\b', summary)
-        if matches:
-            company_names_set.add(matches[0])
+def detect_country(text):
+    """Country detection with word boundaries"""
+    text_lower = text.lower()
+    for country in countries:
+        if re.search(rf'\b{re.escape(country.lower())}\b', text_lower):
+            return country
+    return "Global"
 
-company_names_list = sorted(list(company_names_set))
-print(f"Found {len(company_names_list)} unique company names.")
+def analyze_sentiment(text):
+    """Sentiment analysis with enhanced thresholds"""
+    analysis = TextBlob(text)
+    polarity = analysis.sentiment.polarity
+    
+    if polarity > 0.2:
+        return "Positive"
+    elif polarity < -0.2:
+        return "Negative"
+    else:
+        return "Neutral"
 
-# Step 2: Batch Gemini lookup
-def batch(iterable, n=10):
-    for i in range(0, len(iterable), n):
-        yield iterable[i:i + n]
-
-company_ceo_dict = {}
-
-print("Starting Gemini CEO lookup in batches...")
-for idx, company_batch in enumerate(batch(company_names_list, n=10)):
-    prompt = """You are an expert researcher. For each of the following companies, give the CURRENT CEO name ONLY.
-If not known, reply "Unknown".
-
-Format your response exactly like this:
-Company Name: CEO Name
-
-Companies:
-""" + "\n".join(f"{i+1}. {name}" for i, name in enumerate(company_batch))
-
+def process_article(row):
+    """Process each article to extract required information"""
     try:
-        response = model.generate_content(prompt)
-        text = response.text
-
-        # Parse response
-        matches = re.findall(r"^(.*?)\s*:\s*(.*?)$", text, re.MULTILINE)
-        for company, ceo in matches:
-            company = company.strip()
-            ceo = ceo.strip()
-            if not ceo or ceo.lower() in {"unknown", "n/a", "none"}:
-                ceo = "None"
-            company_ceo_dict[company] = ceo
-
-        print(f"Batch {idx+1} done.")
-
-        time.sleep(2)
-
-    except Exception as e:
-        print(f"Gemini API error on batch {idx+1}: {e}")
-
-# Step 3: Process rows
-def process_row(row):
-    try:
-        url = row["URL"]
-        title = row["Título"]
-        summary = row["Resumen"]
-
-        # Drop rows with missing Resumen
-        if not isinstance(summary, str) or summary.strip() == "":
+        title = row["Title"] if "Title" in row else row["Título"]
+        url = row["Link"] if "Link" in row else row["URL"]
+        description = clean_description(row["Description"] if "Description" in row else row["Resumen"])
+        
+        if not description:
             return None
 
-        summary = clean_resumen(summary)
-
-        # Sentiment analysis
-        polarity = TextBlob(summary).sentiment.polarity
-        if polarity > 0.1:
-            sentiment = "positive"
-        elif polarity < -0.1:
-            sentiment = "negative"
-        else:
-            sentiment = "neutral"
-
-        # NER to find company name
-        company_name = "None"
-        doc = nlp(summary)
-        found = False
-        for ent in doc.ents:
-            if ent.label_ in {"ORG", "COMPANY"}:
-                company_name = ent.text.strip()
-                found = True
-                break
-        if not found:
-            matches = re.findall(r'\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)+)\b', summary)
-            if matches:
-                company_name = matches[0]
-
-        # CEO lookup
-        ceo_name = company_ceo_dict.get(company_name, "None")
-
-        # Category classifier
-        category = "None"
-        summary_lower = summary.lower()
-        summary_tokens = word_tokenize(summary_lower)
-        for label, keywords in category_keywords.items():
-            if any(keyword in summary_tokens for keyword in keywords):
-                category = label
-                break
-
-        # Country classifier
-        country = "None"
-        for c in countries:
-            if c.lower() in summary_lower:
-                country = c
-                break
-
+        # Detect category and country
+        category = detect_category(description)
+        country = detect_country(description)
+        
+        # Optional: Add sentiment analysis if needed
+        sentiment = analyze_sentiment(description)
+        
         return {
-            "news_title": title,
-            "company_name": company_name,
-            "ceo": ceo_name,
-            "summary": summary,
-            "site_url": url,
-            "category": category,
-            "country": country,
-            "sent_analysis": str({"label": sentiment, "score": round(polarity, 3)})
+            "Title": title,
+            "Link": url,
+            "Description": description,
+            "Category": category,
+            "Location": country,
+            # "Sentiment": sentiment  # Uncomment if needed
         }
-
+        
     except Exception as e:
-        print(f"Error processing row {row.name}: {e}")
+        print(f"Error processing article: {e}")
         return None
 
-# Process all rows
-results = []
-for idx, row in df.iterrows():
-    enriched = process_row(row)
-    if enriched:
-        results.append(enriched)
+def main():
+    # Load input CSV
+    df = pd.read_csv("output.csv")
+    
+    # Process all articles
+    results = []
+    for _, row in df.iterrows():
+        processed = process_article(row)
+        if processed:
+            results.append(processed)
+    
+    # Save to CSV
+    output_df = pd.DataFrame(results)
+    output_csv = "enriched_articles_final.csv"
+    output_df.to_csv(output_csv, index=False, encoding='utf-8-sig')
+    print(f"Successfully processed {len(results)} articles. Saved to {output_csv}")
 
-# Save to CSV
-output_csv = "enriched_articles_final.csv"
-df_out = pd.DataFrame(results)
-df_out.to_csv(output_csv, index=False, encoding="utf-8-sig")
-
-print(f"Saved {len(results)} enriched articles to {output_csv}")
+if __name__ == "__main__":
+    main()
