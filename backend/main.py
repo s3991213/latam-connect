@@ -320,55 +320,37 @@ def delete_spider_url_endpoint(url_id: str):
 
 
 # ---------- AI Enriching Input Endpoints ----------
-
 @app.post("/ai_enriching_inputs", status_code=201)
 async def create_ai_enriching_input_endpoint(data: dict = Body(...)):
-    """
-    Create a new AI enriching input record.
-    Expects a JSON body like:
-    {
-        "Title": "Example Article",
-        "Link": "http://example.com/article",
-        "Description": "This is a description...",
-        "Category": "Technology",
-        "Location": "Global"
-    }
-    """
     try:
         inserted_id = create_ai_enriching_input(data)
-        return {"message": "Record created successfully", "id": inserted_id}
+        return {"message": "Record created successfully", "id": str(inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create record: {e}")
 
 @app.get("/ai_enriching_inputs")
-async def get_all_ai_enriching_inputs_endpoint(
-    keyword: Optional[str] = None
-):
-    """
-    Get all AI enriching input records, with optional keyword search.
-    """
+async def get_all_ai_enriching_inputs_endpoint(keyword: Optional[str] = None):
     if keyword:
         records = search_ai_enriching_inputs(keyword)
     else:
         records = get_all_ai_enriching_inputs()
+    # Inline conversion for each record
+    for rec in records:
+        rec['id'] = str(rec['_id'])
+        del rec['_id']
     return records
 
 @app.get("/ai_enriching_inputs/{record_id}")
 async def get_ai_enriching_input_endpoint(record_id: str):
-    """
-    Get a single AI enriching input record by ID.
-    """
     record = get_ai_enriching_input(record_id)
     if record:
-        record['_id'] = str(record['_id']) # Convert ObjectId to string for JSON serialization
+        record['id'] = str(record['_id'])
+        del record['_id']
         return record
     raise HTTPException(status_code=404, detail="Record not found")
 
 @app.put("/ai_enriching_inputs/{record_id}")
 async def update_ai_enriching_input_endpoint(record_id: str, data: dict = Body(...)):
-    """
-    Update an AI enriching input record by ID.
-    """
     modified_count = update_ai_enriching_input(record_id, data)
     if modified_count:
         return {"message": "Record updated successfully", "modified_count": modified_count}
@@ -376,9 +358,6 @@ async def update_ai_enriching_input_endpoint(record_id: str, data: dict = Body(.
 
 @app.delete("/ai_enriching_inputs/{record_id}")
 async def delete_ai_enriching_input_endpoint(record_id: str):
-    """
-    Delete an AI enriching input record by ID.
-    """
     deleted_count = delete_ai_enriching_input(record_id)
     if deleted_count:
         return {"message": "Record deleted successfully", "deleted_count": deleted_count}

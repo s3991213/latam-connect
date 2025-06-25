@@ -5,6 +5,10 @@ import pandas as pd
 import spacy
 from transformers import pipeline
 
+import requests
+
+BACKEND_API_URL = "http://127.0.0.1:8000/ai_enriching_inputs"
+
 print("✅ Libraries imported successfully.")
 
 # Load models
@@ -44,9 +48,35 @@ def extract_entities(text):
         "hf_locs": transformer_locs
     }
 
-# === Load data and test one article ===
-df = pd.read_csv("data_LatamConnect.csv", encoding="ISO-8859-1")
-print(f"✅ Loaded {len(df)} articles.")
+# # === Load data and test one article ===
+# df = pd.read_csv("data_LatamConnect.csv", encoding="ISO-8859-1")
+# print(f"✅ Loaded {len(df)} articles.")
+
+try:
+    response = requests.get(BACKEND_API_URL)
+    response.raise_for_status()
+    data_from_api = response.json()
+    df = pd.DataFrame(data_from_api)
+
+    if '_id' in df.columns:
+        df = df.drop(columns=['_id'])
+
+    print(f"✅ Loaded {len(df)} articles from backend API for GPT extraction.")
+    print("First 5 rows of data:")
+    print(df.head())
+
+except requests.exceptions.ConnectionError as e:
+    print(f"❌ Connection Error: Could not connect to the backend API at {BACKEND_API_URL}. Is your FastAPI server running? Error: {e}")
+except requests.exceptions.Timeout:
+    print(f"❌ Timeout Error: The request to {BACKEND_API_URL} timed out.")
+except requests.exceptions.HTTPError as e:
+    print(f"❌ HTTP Error: {e.response.status_code} - {e.response.text}")
+except requests.exceptions.RequestException as e:
+    print(f"❌ An error occurred during the API request: {e}")
+except ValueError as e:
+    print(f"❌ Error decoding JSON response from API: {e}. Response content: {response.text}")
+except Exception as e:
+    print(f"❌ An unexpected error occurred: {e}")
 
 sample = df.iloc[1]
 combined_text = clean_text(f"{sample['Title']} {sample['Description']}")
