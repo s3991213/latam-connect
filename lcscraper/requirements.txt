@@ -1,0 +1,9 @@
+scrapy
+google-generativeai
+pandas
+spacy
+textblob
+nltk
+python-dotenv
+w3lib
+requests
