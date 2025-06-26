@@ -1,5 +1,3 @@
-# gpt_pipeline.py — Final GPT fallback extractor (based on ner_dev.ipynb)
-
 import pandas as pd
 import os
 import json
@@ -8,7 +6,7 @@ from dotenv import load_dotenv
 import requests
 
 BACKEND_API_URL = "http://127.0.0.1:8000/ai_enriching_inputs"
-
+BULK_API_URL = "http://127.0.0.1:8000/enriched_articles/bulk/"
 
 # Load OpenAI key
 load_dotenv()
@@ -61,10 +59,7 @@ Description: {article['Description']}
     except Exception as e:
         return {"error": str(e)}
 
-# # Load your article dataset
-# df = pd.read_csv("data_LatamConnect.csv", encoding="ISO-8859-1")
-# print(f"✅ Loaded {len(df)} articles for GPT extraction.")
-
+# Load articles from backend API
 try:
     response = requests.get(BACKEND_API_URL)
     response.raise_for_status()
@@ -80,16 +75,26 @@ try:
 
 except requests.exceptions.ConnectionError as e:
     print(f"❌ Connection Error: Could not connect to the backend API at {BACKEND_API_URL}. Is your FastAPI server running? Error: {e}")
+    df = pd.DataFrame()
 except requests.exceptions.Timeout:
     print(f"❌ Timeout Error: The request to {BACKEND_API_URL} timed out.")
+    df = pd.DataFrame()
 except requests.exceptions.HTTPError as e:
     print(f"❌ HTTP Error: {e.response.status_code} - {e.response.text}")
+    df = pd.DataFrame()
 except requests.exceptions.RequestException as e:
     print(f"❌ An error occurred during the API request: {e}")
+    df = pd.DataFrame()
 except ValueError as e:
     print(f"❌ Error decoding JSON response from API: {e}. Response content: {response.text}")
+    df = pd.DataFrame()
 except Exception as e:
     print(f"❌ An unexpected error occurred: {e}")
+    df = pd.DataFrame()
+
+if df.empty:
+    print("⚠️ No data to process. Exiting.")
+    exit()
 
 # Store all results
 all_outputs = []
@@ -120,7 +125,13 @@ for i, row in df.iterrows():
         "insights": insights
     })
 
-# Save final output to CSV (match required column order)
-output_df = pd.DataFrame(all_outputs)
-output_df.to_csv("gpt_output.csv", index=False)
-print("\n✅ Saved to gpt_output.csv (fully GPT-enriched and clean).")
+# Send all outputs to FastAPI bulk endpoint
+if all_outputs:
+    try:
+        response = requests.post(BULK_API_URL, json=all_outputs)
+        response.raise_for_status()
+        print(f"\n✅ Bulk upload successful! Server response: {response.json()}")
+    except Exception as e:
+        print(f"\n❌ Bulk upload failed: {e}")
+else:
+    print("\n⚠️ No outputs to send.")

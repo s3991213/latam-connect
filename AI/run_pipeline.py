@@ -15,6 +15,6 @@ is_valid = validate_main_output("main_output.csv")
 if not is_valid:
     print("\n⚠️ Validation failed. Running GPT fallback with gpt_pipeline.py...")
     os.system("python gpt_pipeline.py")
-    print("\n✅ GPT fallback complete. Output saved to gpt_output.csv.")
+    print("\n✅ GPT fallback complete. Output saved to mongo.")
 else:
-    print("\n✅ Validation passed! Local extraction is good. Final output is main_output.csv.")
+    print("\n✅ Validation passed! Local extraction is good. Final output sent to mongo.")

@@ -209,6 +209,27 @@ def delete_enriched_article_endpoint(article_id: str):
         raise HTTPException(status_code=404, detail="Enriched article not found or not deleted")
     return {"deleted": deleted}
 
+@app.post("/enriched_articles/bulk/")
+def bulk_create_enriched_articles_endpoint(data: List[dict] = Body(...)):
+    inserted = 0
+    skipped = 0
+    for article in data:
+        # Check for duplicates based on title and description
+        existing = ai_enriched_articles_collection.find_one({
+            "title": article.get("title"),
+            "description": article.get("description")
+        })
+        if existing:
+            skipped += 1
+            continue
+        ai_enriched_articles_collection.insert_one(article)
+        inserted += 1
+    return {
+        "inserted": inserted,
+        "skipped_duplicates": skipped,
+        "total_received": len(data)
+    }
+
 # ==================== UPDATED GLOBAL ENDPOINTS ====================
 
 @app.get("/search_websites/")
